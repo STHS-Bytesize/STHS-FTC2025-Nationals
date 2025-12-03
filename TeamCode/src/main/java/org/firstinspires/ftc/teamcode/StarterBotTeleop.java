@@ -25,7 +25,7 @@
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, CONTRACT, STRICT LIABILITY, OR
  * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
@@ -109,7 +109,7 @@ public class StarterBotTeleop extends OpMode {
         IDLE,
         SPIN_UP,
         LAUNCH,
-        LAUNCHING,
+        // LAUNCHING state removed for simpler implementation
     }
 
     private LaunchState launchState;
@@ -238,20 +238,21 @@ public class StarterBotTeleop extends OpMode {
         /*
          * Now we call our "Launch" function.
          */
-        boolean rightBumperPressed = gamepad1.rightBumperWasPressed();
+        boolean rightBumperPressed = gamepad1.right_bumper; // Changed to instant press detection for better rapid fire
         boolean rightTriggerPressed = gamepad1.right_trigger > 0.5;
 
         boolean firePressed = false;
 
         if (rightBumperPressed) {
             LAUNCHER_TARGET_VELOCITY = 1400;
-            double LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
+            LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
             shootCounter++;
         }
 
+        // Only allow firing if the trigger is pressed AND the cooldown has expired
         if (rightTriggerPressed && triggerCooldown.seconds() > triggerMinTimeBetweenShots){
             LAUNCHER_TARGET_VELOCITY = 1125;
-            double LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
+            LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
             firePressed = true;
             triggerCooldown.reset();
         }
@@ -307,35 +308,61 @@ public class StarterBotTeleop extends OpMode {
 
     }
 
+    /**
+     * Corrected launch function: Ensures the launcher is up to speed before
+     * activating the feeder servos.
+     * @param shotRequested True if a shot is requested by the driver.
+     */
     void launch(boolean shotRequested) {
         switch (launchState) {
             case IDLE:
+                // Check if a shot is requested
                 if (shotRequested) {
-                    launchState = LaunchState.SPIN_UP;
+                    // Check if the launcher is ALREADY up to speed
+                    if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
+                        // If ready, skip spin-up and go straight to launch
+                        launchState = LaunchState.LAUNCH;
+                        // Since we are skipping SPIN_UP, we set the velocity here
+                        launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
+                    } else {
+                        // If not up to speed, enter the spin-up phase
+                        launchState = LaunchState.SPIN_UP;
+                    }
+
                     if (shootCounter > 0) {
                         shootCounter--;
                     }
                 }
                 break;
+
             case SPIN_UP:
+                // Always ensure the target velocity is set
+
+                // Start the feeder servos
+                leftFeeder.setPower(FULL_SPEED);
+                rightFeeder.setPower(FULL_SPEED);
                 launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
                 launcherIdleTimer.reset();
+
+                // Once the motor reaches minimum speed, transition to LAUNCH
                 if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
                     launchState = LaunchState.LAUNCH;
                 }
                 break;
+
             case LAUNCH:
-                leftFeeder.setPower(FULL_SPEED);
-                rightFeeder.setPower(FULL_SPEED);
-                feederTimer.reset();
-                launcherIdleTimer.reset();
-                launchState = LaunchState.LAUNCHING;
-                break;
-            case LAUNCHING:
+                // Reset the timer when the servos start to track run time
+                if (feederTimer.seconds() < 0.001) { // Check if the timer was just reset (or close to 0)
+                    feederTimer.reset();
+                    launcherIdleTimer.reset();
+                }
+
+                // Wait until the required feed time has passed
                 if (feederTimer.seconds() > FEED_TIME_SECONDS) {
-                    launchState = LaunchState.IDLE;
+                    // Stop the feeder servos and return to idle
                     leftFeeder.setPower(STOP_SPEED);
                     rightFeeder.setPower(STOP_SPEED);
+                    launchState = LaunchState.IDLE;
                 }
                 break;
         }
