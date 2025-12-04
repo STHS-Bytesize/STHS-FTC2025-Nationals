@@ -238,7 +238,7 @@ public class StarterBotTeleop extends OpMode {
         /*
          * Now we call our "Launch" function.
          */
-        boolean rightBumperPressed = gamepad1.right_bumper; // Changed to instant press detection for better rapid fire
+        boolean rightBumperPressed = gamepad1.rightBumperWasPressed();
         boolean rightTriggerPressed = gamepad1.right_trigger > 0.5;
 
         boolean firePressed = false;
@@ -337,10 +337,6 @@ public class StarterBotTeleop extends OpMode {
 
             case SPIN_UP:
                 // Always ensure the target velocity is set
-
-                // Start the feeder servos
-                leftFeeder.setPower(FULL_SPEED);
-                rightFeeder.setPower(FULL_SPEED);
                 launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
                 launcherIdleTimer.reset();
 
@@ -351,6 +347,9 @@ public class StarterBotTeleop extends OpMode {
                 break;
 
             case LAUNCH:
+                // Start the feeder servos
+                leftFeeder.setPower(FULL_SPEED);
+                rightFeeder.setPower(FULL_SPEED);
                 // Reset the timer when the servos start to track run time
                 if (feederTimer.seconds() < 0.001) { // Check if the timer was just reset (or close to 0)
                     feederTimer.reset();
