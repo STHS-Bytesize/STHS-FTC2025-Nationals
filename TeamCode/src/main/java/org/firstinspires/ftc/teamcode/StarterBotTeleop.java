@@ -315,50 +315,38 @@ public class StarterBotTeleop extends OpMode {
      */
     void launch(boolean shotRequested) {
         switch (launchState) {
-            case IDLE:
-                // Check if a shot is requested
-                if (shotRequested) {
-                    // Check if the launcher is ALREADY up to speed
-                    if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
-                        // If ready, skip spin-up and go straight to launch
-                        launchState = LaunchState.LAUNCH;
-                        // Since we are skipping SPIN_UP, we set the velocity here
-                        launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
-                    } else {
-                        // If not up to speed, enter the spin-up phase
-                        launchState = LaunchState.SPIN_UP;
-                    }
 
-                    if (shootCounter > 0) {
-                        shootCounter--;
+            case IDLE:
+                if (shotRequested) {
+                    if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
+                        launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
+                        launchState = LaunchState.LAUNCH;
+                        feederTimer.reset();
+
+                        if (shootCounter > 0) shootCounter--;
+                    } else {
+                        launchState = LaunchState.SPIN_UP;
                     }
                 }
                 break;
 
             case SPIN_UP:
-                // Always ensure the target velocity is set
                 launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
                 launcherIdleTimer.reset();
 
-                // Once the motor reaches minimum speed, transition to LAUNCH
                 if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
                     launchState = LaunchState.LAUNCH;
+                    feederTimer.reset();
+
+                    if (shootCounter > 0) shootCounter--;
                 }
                 break;
 
             case LAUNCH:
-                // Start the feeder servos
                 leftFeeder.setPower(FULL_SPEED);
                 rightFeeder.setPower(FULL_SPEED);
-                // Reset the timer when the servos start to track run time
-                if (feederTimer.seconds() < 0.001) { // Check if the timer was just reset (or close to 0)
-                    feederTimer.reset();
-                    launcherIdleTimer.reset();
-                }
 
-                // Wait until the required feed time has passed
                 if (feederTimer.seconds() > FEED_TIME_SECONDS) {
-                    // Stop the feeder servos and return to idle
                     leftFeeder.setPower(STOP_SPEED);
                     rightFeeder.setPower(STOP_SPEED);
                     launchState = LaunchState.IDLE;
@@ -366,4 +354,5 @@ public class StarterBotTeleop extends OpMode {
                 break;
         }
     }
+
 }
