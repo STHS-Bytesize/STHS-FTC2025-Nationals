@@ -131,7 +131,6 @@ public class StarterBotServoTester extends OpMode {
     double leftBackPower;
     double rightBackPower;
 
-    int shootCounter = 0;
 
     /*
      * Code to run ONCE when the driver hits INIT
@@ -280,36 +279,28 @@ public class StarterBotServoTester extends OpMode {
          * Now we call our "Launch" function.
          */
         boolean rightBumperPressed = gamepad1.rightBumperWasPressed();
-        boolean rightTriggerPressed = gamepad1.right_trigger > 0.5;
 
-        boolean firePressed = false;
-
-        if (rightBumperPressed) {
+        if (rightBumperPressed){
             LAUNCHER_TARGET_VELOCITY = 1400;
             LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
-            shootCounter++;
+            launch(true);
         }
 
         // Only allow firing if the trigger is pressed AND the cooldown has expired
-        if (rightTriggerPressed && triggerCooldown.seconds() > triggerMinTimeBetweenShots){
+        if (gamepad1.right_trigger > 0.5 && triggerCooldown.seconds() > triggerMinTimeBetweenShots){
             LAUNCHER_TARGET_VELOCITY = 1125;
             LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
-            firePressed = true;
-            triggerCooldown.reset();
-        }
-
-        if (firePressed || shootCounter > 0){
             launch(true);
+            triggerCooldown.reset();
         }
 
         if (launcher.getVelocity() > 50 && launcherIdleTimer.seconds() > 5.0) {
             launcher.setVelocity(STOP_SPEED);
+            launchState = LaunchState.IDLE;
         }
-
         /*
          * Show the state and motor powers
          */
-        telemetry.addData("State", launchState);
         telemetry.addData("Motors", "left front (%.2f), right front (%.2f), left back (%.2f), right back (%.2f)", leftFrontPower, rightFrontPower, leftBackPower, rightBackPower);
         telemetry.addData("motorSpeed", launcher.getVelocity());
         telemetry.addData("Launcher",
@@ -367,8 +358,6 @@ public class StarterBotServoTester extends OpMode {
                         launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
                         launchState = LaunchState.LAUNCH;
                         feederTimer.reset();
-
-                        if (shootCounter > 0) shootCounter--;
                     } else {
                         launchState = LaunchState.SPIN_UP;
                     }
@@ -382,8 +371,6 @@ public class StarterBotServoTester extends OpMode {
                 if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
                     launchState = LaunchState.LAUNCH;
                     feederTimer.reset();
-
-                    if (shootCounter > 0) shootCounter--;
                 }
                 break;
 
