@@ -59,10 +59,10 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * we will also need to adjust the "PIDF" coefficients with some that are a better fit for our application.
  */
 
-@TeleOp(name = "StarterBotTeleop", group = "StarterBot")
+@TeleOp(name = "StarterBotServoTester", group = "StarterBot")
 //@Disabled
-public class StarterBotTeleop extends OpMode {
-    final double FEED_TIME_SECONDS = 0.50; //The feeder servos run this long when a shot is requested.
+public class StarterBotServoTester extends OpMode {
+    final double FEED_TIME_SECONDS = 0.20; //The feeder servos run this long when a shot is requested.
     final double STOP_SPEED = 0.0; //We send this power to the servos when we want them to stop.
     final double FULL_SPEED = 1.0;
 
@@ -83,7 +83,7 @@ public class StarterBotTeleop extends OpMode {
     private DcMotorEx launcher = null;
     private CRServo leftFeeder = null;
     private CRServo rightFeeder = null;
-//    private Servo angleServo = null;
+    private Servo angleServo = null;
 
     ElapsedTime feederTimer = new ElapsedTime();
     ElapsedTime launcherIdleTimer = new ElapsedTime();
@@ -91,6 +91,12 @@ public class StarterBotTeleop extends OpMode {
     double triggerMinTimeBetweenShots = 0.14;
     double servoDefaultAngle = 0; // todo
     double servoEngagedAngle = 0; // todo
+    private enum TestingAngle {
+        Default,
+        Engaged
+    }
+
+    private TestingAngle testingAngle;
 
 
     /*
@@ -125,12 +131,14 @@ public class StarterBotTeleop extends OpMode {
     double leftBackPower;
     double rightBackPower;
 
+
     /*
      * Code to run ONCE when the driver hits INIT
      */
     @Override
     public void init() {
         launchState = LaunchState.IDLE;
+        testingAngle = TestingAngle.Default;
 
         /*
          * Initialize the hardware variables. Note that the strings used here as parameters
@@ -144,7 +152,7 @@ public class StarterBotTeleop extends OpMode {
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
         leftFeeder = hardwareMap.get(CRServo.class, "left_feeder");
         rightFeeder = hardwareMap.get(CRServo.class, "right_feeder");
-//        angleServo = hardwareMap.get(Servo.class, "angle_servo");
+        angleServo = hardwareMap.get(Servo.class, "angle_servo");
 
         /*
          * To drive forward, most robots need the motor on one side to be reversed,
@@ -179,18 +187,18 @@ public class StarterBotTeleop extends OpMode {
         launcher.setZeroPowerBehavior(BRAKE);
 
         /*
-         * Much like our drivetrain motors, we set the left feeder servo to reverse so that they
-         * both work to feed the ball into the robot.
-         */
-        leftFeeder.setDirection(DcMotorSimple.Direction.REVERSE);
-
-        /*
          * set Feeders to an initial value to initialize the servo controller
          */
         leftFeeder.setPower(STOP_SPEED);
         rightFeeder.setPower(STOP_SPEED);
 
         launcher.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(300, 0, 0, 10));
+
+        /*
+         * Much like our drivetrain motors, we set the left feeder servo to reverse so that they
+         * both work to feed the ball into the robot.
+         */
+        leftFeeder.setDirection(DcMotorSimple.Direction.REVERSE);
 
         /*
          * Tell the driver that initialization is complete.
@@ -238,6 +246,34 @@ public class StarterBotTeleop extends OpMode {
             launcher.setVelocity(STOP_SPEED);
         }
 
+        if (gamepad1.dpadLeftWasPressed()){
+            testingAngle = TestingAngle.Default;
+        }else if(gamepad1.dpadRightWasPressed()){
+            testingAngle = TestingAngle.Engaged;
+        }
+
+        if (gamepad1.dpadUpWasPressed()){
+            if (testingAngle == TestingAngle.Default){
+                servoDefaultAngle = servoDefaultAngle + 0.01;
+            }else if(testingAngle == TestingAngle.Engaged){
+                servoEngagedAngle= servoEngagedAngle + 0.01;
+            }
+        } else if (gamepad1.dpadDownWasPressed()) {
+            if (testingAngle == TestingAngle.Default){
+                servoDefaultAngle = servoDefaultAngle - 0.01;
+            }else if(testingAngle == TestingAngle.Engaged){
+                servoEngagedAngle = servoEngagedAngle - 0.01;
+            }
+        }
+
+        servoDefaultAngle = Math.max(0.0, Math.min(servoDefaultAngle, 1.0));
+        servoEngagedAngle = Math.max(0.0, Math.min(servoEngagedAngle, 1.0));
+
+        if(gamepad1.yWasPressed()){
+            angleServo.setPosition(servoEngagedAngle);
+        } else if (gamepad1.aWasPressed()) {
+            angleServo.setPosition(servoDefaultAngle);
+        }
 
         /*
          * Now we call our "Launch" function.
@@ -262,7 +298,6 @@ public class StarterBotTeleop extends OpMode {
             launcher.setVelocity(STOP_SPEED);
             launchState = LaunchState.IDLE;
         }
-
         /*
          * Show the state and motor powers
          */
@@ -276,6 +311,10 @@ public class StarterBotTeleop extends OpMode {
                         ? String.format("%.1fs", Math.max(0, 5.0 - launcherIdleTimer.seconds()))
                         : "Stopped"
         );
+        telemetry.addData("Servo Angles",
+                "Default: %.1f°, Engaged: %.1f°",
+                servoDefaultAngle * 180,
+                servoEngagedAngle * 180);
     }
 
     /*
