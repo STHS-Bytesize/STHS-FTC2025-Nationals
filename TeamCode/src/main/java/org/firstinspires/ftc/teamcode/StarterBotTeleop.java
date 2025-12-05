@@ -88,8 +88,9 @@ public class StarterBotTeleop extends OpMode {
     ElapsedTime feederTimer = new ElapsedTime();
     ElapsedTime launcherIdleTimer = new ElapsedTime();
     ElapsedTime triggerCooldown = new ElapsedTime();
+    ElapsedTime servoCooldown = new ElapsedTime();
     double triggerMinTimeBetweenShots = 0.14;
-    double servoDefaultAngle = 0;
+    double servoDefaultAngle = 0.2;
     double servoEngagedAngle = 0.5;
     private enum ServoAngle {
         Default,
@@ -140,7 +141,6 @@ public class StarterBotTeleop extends OpMode {
     @Override
     public void init() {
         launchState = LaunchState.IDLE;
-        servoAngle = ServoAngle.Default;
 
         /*
          * Initialize the hardware variables. Note that the strings used here as parameters
@@ -220,6 +220,7 @@ public class StarterBotTeleop extends OpMode {
      */
     @Override
     public void start() {
+        servoAngle = ServoAngle.Default;
     }
 
     /*
@@ -275,16 +276,18 @@ public class StarterBotTeleop extends OpMode {
         servoDefaultAngle = Math.max(0.0, Math.min(servoDefaultAngle, 1.0));
         servoEngagedAngle = Math.max(0.0, Math.min(servoEngagedAngle, 1.0));
 
-        if(gamepad1.aWasPressed() && !servoEngaged){
-            LAUNCHER_TARGET_VELOCITY = 1125;
+        if(gamepad1.a && !servoEngaged && servoCooldown.seconds() > 0.2){
+            LAUNCHER_TARGET_VELOCITY = 1500;
             LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
             angleServo.setPosition(servoEngagedAngle);
             servoEngaged = true;
-        } else if (gamepad1.aWasPressed() && servoEngaged) {
-            LAUNCHER_TARGET_VELOCITY = 1500;
+            servoCooldown.reset();
+        } else if (gamepad1.a && servoEngaged && servoCooldown.seconds() > 0.2) {
+            LAUNCHER_TARGET_VELOCITY = 1125;
             LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
             angleServo.setPosition(servoDefaultAngle);
             servoEngaged = false;
+            servoCooldown.reset();
         }
 
 
