@@ -83,14 +83,21 @@ public class StarterBotTeleop extends OpMode {
     private DcMotorEx launcher = null;
     private CRServo leftFeeder = null;
     private CRServo rightFeeder = null;
-//    private Servo angleServo = null;
+    private Servo angleServo = null;
 
     ElapsedTime feederTimer = new ElapsedTime();
     ElapsedTime launcherIdleTimer = new ElapsedTime();
     ElapsedTime triggerCooldown = new ElapsedTime();
     double triggerMinTimeBetweenShots = 0.14;
-    double servoDefaultAngle = 0; // todo
-    double servoEngagedAngle = 0; // todo
+    double servoDefaultAngle = 0;
+    double servoEngagedAngle = 0.5;
+    private enum ServoAngle {
+        Default,
+        Engaged
+    }
+
+    private ServoAngle servoAngle;
+
 
 
     /*
@@ -125,12 +132,15 @@ public class StarterBotTeleop extends OpMode {
     double leftBackPower;
     double rightBackPower;
 
+    boolean servoEngaged = false;
+
     /*
      * Code to run ONCE when the driver hits INIT
      */
     @Override
     public void init() {
         launchState = LaunchState.IDLE;
+        servoAngle = ServoAngle.Default;
 
         /*
          * Initialize the hardware variables. Note that the strings used here as parameters
@@ -144,7 +154,7 @@ public class StarterBotTeleop extends OpMode {
         launcher = hardwareMap.get(DcMotorEx.class, "launcher");
         leftFeeder = hardwareMap.get(CRServo.class, "left_feeder");
         rightFeeder = hardwareMap.get(CRServo.class, "right_feeder");
-//        angleServo = hardwareMap.get(Servo.class, "angle_servo");
+        angleServo = hardwareMap.get(Servo.class, "angle_servo");
 
         /*
          * To drive forward, most robots need the motor on one side to be reversed,
@@ -238,22 +248,51 @@ public class StarterBotTeleop extends OpMode {
             launcher.setVelocity(STOP_SPEED);
         }
 
+        /*
+         *Shooting servo angle change
+         */
+
+        if (gamepad1.dpadLeftWasPressed()){
+            servoAngle = ServoAngle.Default;
+        }else if(gamepad1.dpadRightWasPressed()){
+            servoAngle = ServoAngle.Engaged;
+        }
+
+        if (gamepad1.dpadUpWasPressed()){
+            if (servoAngle == ServoAngle.Default){
+                servoDefaultAngle = servoDefaultAngle + 0.01;
+            }else if(servoAngle == ServoAngle.Engaged){
+                servoEngagedAngle= servoEngagedAngle + 0.01;
+            }
+        } else if (gamepad1.dpadDownWasPressed()) {
+            if (servoAngle == ServoAngle.Default){
+                servoDefaultAngle = servoDefaultAngle - 0.01;
+            }else if(servoAngle == ServoAngle.Engaged){
+                servoEngagedAngle = servoEngagedAngle - 0.01;
+            }
+        }
+
+        servoDefaultAngle = Math.max(0.0, Math.min(servoDefaultAngle, 1.0));
+        servoEngagedAngle = Math.max(0.0, Math.min(servoEngagedAngle, 1.0));
+
+        if(gamepad1.aWasPressed() && !servoEngaged){
+            LAUNCHER_TARGET_VELOCITY = 1125;
+            LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
+            angleServo.setPosition(servoEngagedAngle);
+            servoEngaged = true;
+        } else if (gamepad1.aWasPressed() && servoEngaged) {
+            LAUNCHER_TARGET_VELOCITY = 1500;
+            LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
+            angleServo.setPosition(servoDefaultAngle);
+            servoEngaged = false;
+        }
+
 
         /*
          * Now we call our "Launch" function.
          */
-        boolean rightBumperPressed = gamepad1.rightBumperWasPressed();
-
-        if (rightBumperPressed){
-            LAUNCHER_TARGET_VELOCITY = 1400;
-            LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
-            launch(true);
-        }
-
         // Only allow firing if the trigger is pressed AND the cooldown has expired
         if (gamepad1.right_trigger > 0.5 && triggerCooldown.seconds() > triggerMinTimeBetweenShots){
-            LAUNCHER_TARGET_VELOCITY = 1125;
-            LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
             launch(true);
             triggerCooldown.reset();
         }
@@ -276,6 +315,11 @@ public class StarterBotTeleop extends OpMode {
                         ? String.format("%.1fs", Math.max(0, 5.0 - launcherIdleTimer.seconds()))
                         : "Stopped"
         );
+        telemetry.addData("Servo Angles",
+                "Default: %.1f°, Engaged: %.1f°",
+                servoDefaultAngle * 180,
+                servoEngagedAngle * 180);
+        telemetry.addData("Servo State", servoAngle);
     }
 
     /*
