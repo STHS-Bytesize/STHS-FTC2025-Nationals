@@ -91,7 +91,7 @@ public class StarterBotTeleop extends OpMode {
     ElapsedTime triggerCooldown = new ElapsedTime();
     ElapsedTime servoCooldown = new ElapsedTime();
     double triggerMinTimeBetweenShots = 0.14;
-    double servoDefaultAngle = 0.2;
+    double servoDefaultAngle = 0.25;
     double servoEngagedAngle = 0.45;
     private enum ServoAngle {
         Default,
