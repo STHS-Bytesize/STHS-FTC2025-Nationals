@@ -73,6 +73,7 @@ public class StarterBotTeleop extends OpMode {
      * at. The minimum velocity is a threshold for determining when to fire.
      */
     double LAUNCHER_TARGET_VELOCITY = 1125;
+    double SERVO_ENGAGED_VELOCITY= 1500;
     double LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
 
     // Declare OpMode members.
@@ -91,7 +92,7 @@ public class StarterBotTeleop extends OpMode {
     ElapsedTime servoCooldown = new ElapsedTime();
     double triggerMinTimeBetweenShots = 0.14;
     double servoDefaultAngle = 0.2;
-    double servoEngagedAngle = 0.5;
+    double servoEngagedAngle = 0.45;
     private enum ServoAngle {
         Default,
         Engaged
@@ -273,11 +274,17 @@ public class StarterBotTeleop extends OpMode {
             }
         }
 
+        if(gamepad1.leftBumperWasPressed()){
+            SERVO_ENGAGED_VELOCITY = SERVO_ENGAGED_VELOCITY - 10;
+        } else if (gamepad1.rightBumperWasPressed()) {
+            SERVO_ENGAGED_VELOCITY = SERVO_ENGAGED_VELOCITY + 10;
+        }
+
         servoDefaultAngle = Math.max(0.0, Math.min(servoDefaultAngle, 1.0));
         servoEngagedAngle = Math.max(0.0, Math.min(servoEngagedAngle, 1.0));
 
         if(gamepad1.a && !servoEngaged && servoCooldown.seconds() > 0.2){
-            LAUNCHER_TARGET_VELOCITY = 1500;
+            LAUNCHER_TARGET_VELOCITY = SERVO_ENGAGED_VELOCITY;
             LAUNCHER_MIN_VELOCITY = LAUNCHER_TARGET_VELOCITY - 50;
             angleServo.setPosition(servoEngagedAngle);
             servoEngaged = true;
@@ -322,7 +329,8 @@ public class StarterBotTeleop extends OpMode {
                 "Default: %.1f°, Engaged: %.1f°",
                 servoDefaultAngle * 180,
                 servoEngagedAngle * 180);
-        telemetry.addData("Servo State", servoAngle);
+        telemetry.addData("Servo Config.", servoAngle);
+        telemetry.addData("Servo Engaged Velocity", SERVO_ENGAGED_VELOCITY);
     }
 
     /*
